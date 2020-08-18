@@ -24,6 +24,7 @@ class Shops(BaseModel):
     shop = peewee.CharField(max_length=50)
     alternative_name = peewee.CharField(max_length=30)
     website_link = peewee.CharField()
+    affiliate_link = peewee.CharField(90)
 
     class Meta:
         db_table = "shops"
@@ -45,7 +46,7 @@ class Coupons(BaseModel):
 def _build_coupon(coupon) -> str:
     description = f"{coupon.description}\n\n" \
                   f"Актуален до {coupon.expiration_date}\n\n" \
-                  f"Промокод: {coupon.promocode}"
+                  f"Промокод: `{coupon.promocode}`"
     return description
 
 
@@ -60,7 +61,7 @@ def _get_db() -> dict:
              Coupons.select().where(Coupons.shop_id == shop.id)]
 
         db_dict[shop.shop] = \
-            {'website_link': shop.website_link,
+            {'website_link': shop.affiliate_link if shop.affiliate_link else shop.website_link,
              'alternative_name': shop.alternative_name.lower(),
              'coupons': all_coupons_in_shop}
 

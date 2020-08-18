@@ -20,10 +20,38 @@ all_shop_names = database.keys()
 all_shop_names_lower = list(map(lambda s: s.lower(), all_shop_names))
 
 
-@bot.message_handler(commands=['start', 'help'])
+@bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.send_message(message.from_user.id, "Просто пришли мне имя магазина, а в ответ я пришлю тебе все купоны и промокоды, которые у меня есть")
-    bot.send_message(message.from_user.id, "Кстати, у нас есть приложение в App Store)) скачивай! Там тоже удобный поиск)\nhttps://apps.apple.com/ru/app/getcoupon-купоны-и-акции/id1525623085", disable_web_page_preview=True)
+    bot.send_message(
+        message.from_user.id,
+        "Просто пришли мне имя магазина, а в ответ я пришлю тебе все купоны "
+        "и промокоды, которые у меня есть!"
+    )
+
+    bot.send_message(
+        message.from_user.id,
+        "Кстати, наше приложение GetCoupon в "
+        "[App Store](https://apps.apple.com/ru/app/getcoupon-купоны-и-акции/id1525623085)"
+        " и [Google Play](https://example.com)\n"
+        "Скачивай! Там тоже удобный поиск, и всё по полочкам)\n",
+        disable_web_page_preview=True,
+        parse_mode='Markdown'
+    )
+
+
+@bot.message_handler(commands=['help'])
+def send_help(message):
+    bot.send_message(
+        message.from_user.id,
+        "Просто пришли мне имя магазина, "
+        "а я пришлю список промокодов, которые там действуют."
+    )
+
+    bot.send_message(
+        message.from_user.id,
+        "Не забывай про наше удобное приложение GetCoupon для поиска промокодов!",
+        reply_markup=_get_markup_keyboard_for_app()
+    )
 
 
 @bot.message_handler(content_types=['text'])
@@ -35,7 +63,8 @@ def get(message):
     bot.send_message(message.from_user.id,
                      coupons[user_current_coupon_index[message.from_user.id]],
                      reply_markup=keyboard,
-                     disable_web_page_preview=True)
+                     disable_web_page_preview=True,
+                     parse_mode='Markdown')
 
 
 @bot.callback_query_handler(func=lambda f: True)
@@ -54,11 +83,12 @@ def inline(callback):
     bot.edit_message_text(chat_id=user_id,
                           message_id=callback.message.message_id,
                           text=new_text,
-                          reply_markup=_get_markup_keyboard(shop),
-                          disable_web_page_preview=True)
+                          reply_markup=_get_markup_keyboard_for_shop(shop),
+                          disable_web_page_preview=True,
+                          parse_mode='Markdown')
 
 
-def get_coupon(text):
+def get_coupon(text) -> (list, telebot.types.InlineKeyboardMarkup):
     shop = _search_for_shop(text,
                             all_shop_names,
                             all_shop_names_lower)
@@ -69,12 +99,20 @@ def get_coupon(text):
     coupons: list = _get_coupons(database, shop)
 
     if not coupons:
-        return [f"Купонов для '{shop}' не найдено("], None
+        return [f"Купонов для '{shop}' не найдено("], _get_markup_keyboard_with_shop_website_link(shop)
 
-    return coupons, _get_markup_keyboard(shop)
+    if len(coupons) == 1:
+        keyboard = _get_markup_keyboard_with_shop_website_link(shop)
+    else:
+        keyboard = _get_markup_keyboard_for_shop(shop)
+
+    return coupons, keyboard
 
 
-def _get_markup_keyboard(shop: str):
+def _get_markup_keyboard_for_shop(
+        shop: str
+        ) -> telebot.types.InlineKeyboardMarkup:
+
     keyboard = telebot.types.InlineKeyboardMarkup()
 
     keyboard.row(
@@ -85,6 +123,38 @@ def _get_markup_keyboard(shop: str):
     keyboard.add(
         telebot.types.InlineKeyboardButton(
             f'Перейти на сайт {shop}', url=database[shop]['website_link']
+        )
+    )
+
+    return keyboard
+
+
+def _get_markup_keyboard_with_shop_website_link(
+        shop: str
+        ) -> telebot.types.InlineKeyboardMarkup:
+
+    keyboard = telebot.types.InlineKeyboardMarkup()
+
+    keyboard.add(
+        telebot.types.InlineKeyboardButton(
+            f'Перейти на сайт {shop}', url=database[shop]['website_link']
+        )
+    )
+
+    return keyboard
+
+
+def _get_markup_keyboard_for_app() -> telebot.types.InlineKeyboardMarkup:
+    keyboard = telebot.types.InlineKeyboardMarkup()
+
+    keyboard.row(
+        telebot.types.InlineKeyboardButton(
+            'App Store',
+            url="https://apps.apple.com/ru/app/getcoupon-купоны-и-акции/id1525623085"
+        ),
+        telebot.types.InlineKeyboardButton(
+            'Google Play',
+            url="https://example.com"
         )
     )
 
@@ -110,7 +180,10 @@ def _search_for_shop(user_text: str,
 
     for shop, shop_lower in zip(all_shop_names, all_shop_names_lower):
         partial_ratio = fuzz.partial_ratio(text, shop_lower)
-        alternative_ratio = fuzz.partial_ratio(text, database[shop]['alternative_name'])
+        alternative_ratio = fuzz.partial_ratio(
+            text,
+            database[shop]['alternative_name']
+        )
         if partial_ratio > partial_ratio_trust_lvl or \
                 alternative_ratio > partial_ratio_trust_lvl:
             return shop
@@ -124,9 +197,8 @@ def _get_coupons(database, user_shop) -> 'list':
 
 def get_coupon_by_index(shop: str, index: int) -> str:
     all_coupons = database[shop]['coupons']
-    all_coupons_len = len(all_coupons)
-    return all_coupons[index % all_coupons_len]
+    return all_coupons[index % len(all_coupons)]
 
 
 if __name__ == '__main__':
-    bot.polling(none_stop=True, interval=0)
+    bot.polling(none_stop=True, interval=1)

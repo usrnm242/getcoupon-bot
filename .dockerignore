@@ -1,0 +1,10 @@
+.git
+.gitignore
+.pytest_cache/
+**/__pycache__/
+botvenv/
+test?
+*.sh
+*.conf
+**/.DS_Store
+getcoupon_bot.py

@@ -1,16 +1,13 @@
 import peewee
-
-
-user = 'root'
-password = 'dark3013'
-db_name = 'promo'
+import datetime
+from conf import DB_USER, DB_PASSWORD, DB_HOST
 
 
 dbhandle = peewee.MySQLDatabase(
-    db_name,
-    user=user,
-    password=password,
-    host='localhost'
+    'promo',
+    user=DB_USER,
+    password=DB_PASSWORD,
+    host=DB_HOST
 )
 
 
@@ -34,6 +31,7 @@ class Shops(BaseModel):
 class Coupons(BaseModel):
     id = peewee.PrimaryKeyField(null=False)
     promocode = peewee.CharField(max_length=40)
+    adding_date = peewee.DateTimeField()
     expiration_date = peewee.DateTimeField()
     description = peewee.CharField(max_length=512)
     shop_id = peewee.ForeignKeyField(Shops, field="id")
@@ -45,13 +43,32 @@ class Coupons(BaseModel):
 
 def _build_coupon(coupon) -> str:
     description = f"{coupon.description}\n\n" \
-                  f"Актуален до {coupon.expiration_date}\n\n" \
                   f"Промокод: `{coupon.promocode}`"
+
+    def _add_zeros(date):
+        if int(date) < 9:
+            return f"0{date}"
+        else:
+            return date
+
+    if coupon.expiration_date - coupon.adding_date != \
+            datetime.timedelta(days=10):
+        date = coupon.expiration_date
+
+        day = _add_zeros(date.day)
+
+        month = _add_zeros(date.month)
+
+        year = date.year % 2000
+
+        description = f"{description}\n\n" \
+                      f"Актуален до {day}.{month}.{year}"
+
     return description
 
 
 def _get_db() -> dict:
-    dbhandle.connect()
+    dbhandle.connect(reuse_if_open=True)
 
     db_dict = {}
 
@@ -64,6 +81,8 @@ def _get_db() -> dict:
             {'website_link': shop.affiliate_link if shop.affiliate_link else shop.website_link,
              'alternative_name': shop.alternative_name.lower(),
              'coupons': all_coupons_in_shop}
+
+    dbhandle.close()
 
     return db_dict
 

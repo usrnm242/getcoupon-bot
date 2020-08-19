@@ -1,23 +1,28 @@
 import telebot
 import re
+from collections import defaultdict
+import datetime
 import Levenshtein as levenshtein
 from fuzzywuzzy import fuzz
-from collections import defaultdict
-
 from get_db import get_db
+from conf import TOKEN
 
-
-TOKEN = "1315357078:AAE9GQNe2cPVkqu2rOx5rPKnNlpUhOUaUNg"
 
 bot = telebot.TeleBot(TOKEN)
+bot.remove_webhook()
 
+
+def update_db():
+    db = get_db()
+    all_shop_names = db.keys()
+    all_shop_names_lower = list(map(lambda s: s.lower(), all_shop_names))
+    return db, all_shop_names, all_shop_names_lower
+
+
+database, all_shop_names, all_shop_names_lower = update_db()
 user_current_coupon_index = defaultdict(int)
-
-
-database = get_db()
-
-all_shop_names = database.keys()
-all_shop_names_lower = list(map(lambda s: s.lower(), all_shop_names))
+db_last_update_time = datetime.datetime.now()
+db_cache_expiry_interval = datetime.timedelta(minutes=15)
 
 
 @bot.message_handler(commands=['start'])
@@ -30,7 +35,7 @@ def send_welcome(message):
 
     bot.send_message(
         message.from_user.id,
-        "Кстати, наше приложение GetCoupon в "
+        "Кстати, наше приложение `GetCoupon` в "
         "[App Store](https://apps.apple.com/ru/app/getcoupon-купоны-и-акции/id1525623085)"
         " и [Google Play](https://example.com)\n"
         "Скачивай! Там тоже удобный поиск, и всё по полочкам)\n",
@@ -49,15 +54,26 @@ def send_help(message):
 
     bot.send_message(
         message.from_user.id,
-        "Не забывай про наше удобное приложение GetCoupon для поиска промокодов!",
+        "Не забывай про наше удобное приложение `GetCoupon` для поиска промокодов!",
         reply_markup=_get_markup_keyboard_for_app()
     )
 
 
 @bot.message_handler(content_types=['text'])
 def get(message):
-    coupons, keyboard = get_coupon(message.text)
+    now = datetime.datetime.now()
+    # i know, i have to use cache :(
+    global db_last_update_time
     global user_current_coupon_index
+    global database
+    global all_shop_names
+    global all_shop_names_lower
+
+    if now - db_last_update_time >= db_cache_expiry_interval:
+        database, all_shop_names, all_shop_names_lower = update_db()
+        db_last_update_time = now
+
+    coupons, keyboard = get_coupon(message.text)
     user_current_coupon_index[message.from_user.id] = 0
 
     bot.send_message(message.from_user.id,
@@ -94,12 +110,12 @@ def get_coupon(text) -> (list, telebot.types.InlineKeyboardMarkup):
                             all_shop_names_lower)
 
     if not shop:
-        return [f"Не найден '{text}' в базе данных("], None
+        return [f"Магазин '{text}' не найден в базе данных😔"], None
 
     coupons: list = _get_coupons(database, shop)
 
     if not coupons:
-        return [f"Купонов для '{shop}' не найдено("], _get_markup_keyboard_with_shop_website_link(shop)
+        return [f"Купонов для '{shop}' не найдено😔"], _get_markup_keyboard_with_shop_website_link(shop)
 
     if len(coupons) == 1:
         keyboard = _get_markup_keyboard_with_shop_website_link(shop)

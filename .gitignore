@@ -125,4 +125,5 @@ botvenv/
 .dmypy.json
 dmypy.json
 
-test.py
+test*
+*.sh

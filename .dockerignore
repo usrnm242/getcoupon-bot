@@ -7,4 +7,3 @@ test?
 *.sh
 *.conf
 **/.DS_Store
-getcoupon_bot.py

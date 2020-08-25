@@ -1,28 +1,26 @@
 import telebot
 import re
-from collections import defaultdict
 import datetime
 import Levenshtein as levenshtein
 from fuzzywuzzy import fuzz
-from get_db import get_db
+import db
 from conf import TOKEN
 
 
 bot = telebot.TeleBot(TOKEN)
-bot.remove_webhook()
 
 
-def update_db():
-    db = get_db()
-    all_shop_names = db.keys()
-    all_shop_names_lower = list(map(lambda s: s.lower(), all_shop_names))
-    return db, all_shop_names, all_shop_names_lower
-
-
-database, all_shop_names, all_shop_names_lower = update_db()
-user_current_coupon_index = defaultdict(int)
-db_last_update_time = datetime.datetime.now()
-db_cache_expiry_interval = datetime.timedelta(minutes=15)
+# def update_db():
+#     db = get_db()
+#     all_shop_names = db.keys()
+#     all_shop_names_lower = list(map(lambda s: s.lower(), all_shop_names))
+#     return db, all_shop_names, all_shop_names_lower
+#
+#
+# database, all_shop_names, all_shop_names_lower = update_db()
+# user_current_coupon_index = defaultdict(int)
+# db_last_update_time = datetime.datetime.now()
+# db_cache_expiry_interval = datetime.timedelta(minutes=15)
 
 
 @bot.message_handler(commands=['start'])
@@ -61,23 +59,10 @@ def send_help(message):
 
 @bot.message_handler(content_types=['text'])
 def get(message):
-    now = datetime.datetime.now()
-    # i know, i have to use cache :(
-    global db_last_update_time
-    global user_current_coupon_index
-    global database
-    global all_shop_names
-    global all_shop_names_lower
-
-    if now - db_last_update_time >= db_cache_expiry_interval:
-        database, all_shop_names, all_shop_names_lower = update_db()
-        db_last_update_time = now
-
     coupons, keyboard = get_coupon(message.text)
-    user_current_coupon_index[message.from_user.id] = 0
-
+    db.set_user_coupon_index(message.from_user.id, 0)
     bot.send_message(message.from_user.id,
-                     coupons[user_current_coupon_index[message.from_user.id]],
+                     coupons[db.BotUsers[message.from_user.id].coupon_index],
                      reply_markup=keyboard,
                      disable_web_page_preview=True,
                      parse_mode='Markdown')
@@ -89,12 +74,12 @@ def inline(callback):
     shop = callback.data[1:]
 
     if callback.data.startswith("<"):
-        user_current_coupon_index[user_id] -= 1
+        db.dec_user_coupon_index(user_id)
     else:
         # "right;"
-        user_current_coupon_index[user_id] += 1
+        db.inc_user_coupon_index(user_id)
 
-    new_text = get_coupon_by_index(shop, user_current_coupon_index[user_id])
+    new_text = get_coupon_by_index(shop, db.BotUsers[user_id].coupon_index)
 
     bot.edit_message_text(chat_id=user_id,
                           message_id=callback.message.message_id,
@@ -105,14 +90,12 @@ def inline(callback):
 
 
 def get_coupon(text) -> (list, telebot.types.InlineKeyboardMarkup):
-    shop = _search_for_shop(text,
-                            all_shop_names,
-                            all_shop_names_lower)
+    shop = _search_for_shop(text)
 
     if not shop:
         return [f"Магазин '{text}' не найден в базе данных😔"], None
 
-    coupons: list = _get_coupons(database, shop)
+    coupons: list = db.get_coupons(shop)
 
     if not coupons:
         return [f"Купонов для '{shop}' не найдено😔"], _get_markup_keyboard_with_shop_website_link(shop)
@@ -138,7 +121,7 @@ def _get_markup_keyboard_for_shop(
 
     keyboard.add(
         telebot.types.InlineKeyboardButton(
-            f'Перейти на сайт {shop}', url=database[shop]['website_link']
+            f'Перейти на сайт {shop}', url=db.BotShops[shop].website_link
         )
     )
 
@@ -153,7 +136,7 @@ def _get_markup_keyboard_with_shop_website_link(
 
     keyboard.add(
         telebot.types.InlineKeyboardButton(
-            f'Перейти на сайт {shop}', url=database[shop]['website_link']
+            f'Перейти на сайт {shop}', url=db.BotShops[shop].website_link
         )
     )
 
@@ -177,10 +160,7 @@ def _get_markup_keyboard_for_app() -> telebot.types.InlineKeyboardMarkup:
     return keyboard
 
 
-def _search_for_shop(user_text: str,
-                     all_shop_names: list,
-                     all_shop_names_lower: list,
-                     database: dict = database) -> str:
+def _search_for_shop(user_text: str) -> str:
     """
     Returns:
         str shopname if found
@@ -194,25 +174,21 @@ def _search_for_shop(user_text: str,
     text = re.sub(r"[ ]+", " ", text)
     text = f" {text} "  # adding spaces for correct partial ratio searching
 
-    for shop, shop_lower in zip(all_shop_names, all_shop_names_lower):
-        partial_ratio = fuzz.partial_ratio(text, shop_lower)
+    for shop in db.get_shops():
+        partial_ratio = fuzz.partial_ratio(text, shop.shopname_lower)
         alternative_ratio = fuzz.partial_ratio(
             text,
-            database[shop]['alternative_name']
+            shop.alternative_name
         )
         if partial_ratio > partial_ratio_trust_lvl or \
                 alternative_ratio > partial_ratio_trust_lvl:
-            return shop
+            return shop.shop
 
     return ""
 
 
-def _get_coupons(database, user_shop) -> 'list':
-    return database[user_shop]['coupons']
-
-
 def get_coupon_by_index(shop: str, index: int) -> str:
-    all_coupons = database[shop]['coupons']
+    all_coupons = list(db.BotShops[shop].coupons)
     return all_coupons[index % len(all_coupons)]
 
 

@@ -1,10 +1,10 @@
 from os import environ
 
 
-TOKEN = environ.get('TOKEN', '1315357078:AAE9GQNe2cPVkqu2rOx5rPKnNlpUhOUaUNg')
+TOKEN = environ.get('TOKEN', '')
 
 DB_USER = environ.get('MYSQL_USER', 'root')
-DB_PASSWORD = environ.get('MYSQL_PASSWORD', 'dark3013')
+DB_PASSWORD = environ.get('MYSQL_PASSWORD', '')
 DB_HOST = environ.get('MYSQL_HOST', 'localhost')
 
 WEBHOOK_HOST = environ.get('SERVER_ADDR', "http://0.0.0.0:5000")

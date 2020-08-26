@@ -159,7 +159,7 @@ def _build_coupon(coupon) -> str:
                   f"Промокод: {coupon.promocode}"
 
     def _add_zeros(date):
-        if int(date) < 9:
+        if int(date) <= 9:
             return f"0{date}"
         else:
             return date

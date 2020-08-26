@@ -8,15 +8,12 @@ app = Flask(__name__)
 
 @app.route("/", methods=['POST'])
 def index():
-    try:
-        json_from_tg = request.get_json()
-    except Exception:
-        return "fuck"
+    json_from_tg = request.get_json()
 
     update = telebot.types.Update.de_json(json_from_tg)
     bot.process_new_updates([update])
 
-    return 'okay'
+    return 'ok'
 
 
 bot.remove_webhook()

@@ -7,3 +7,4 @@ test?
 *.sh
 *.conf
 **/.DS_Store
+*.db

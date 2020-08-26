@@ -3,8 +3,25 @@ import datetime
 from conf import DB_USER, DB_PASSWORD, DB_HOST
 
 
+db_last_update_time = datetime.datetime.now()
+
+
+def update_db_if_needeed(func):
+
+    def wrapper(*args, **kwargs):
+        now = datetime.datetime.now()
+        global db_last_update_time
+        if now - db_last_update_time > datetime.timedelta(minutes=15):
+            db_last_update_time = now
+            save_to_sqlite_ram(get_db())
+
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 memory_db_handle = peewee.SqliteDatabase(
-    "users.db",
+    "coupons_and_users.db",
     pragmas={
         'cache_size': -1 * 16000,
         'foreign_keys': 1,
@@ -93,6 +110,7 @@ def get_shops():
     return BotShops.select(BotShops.shop, BotShops.shopname_lower, BotShops.alternative_name)
 
 
+@update_db_if_needeed
 def get_coupons(shop: str) -> list:
     return BotShops.get(BotShops.shop == shop).coupons
 
@@ -128,6 +146,7 @@ class Coupons(BaseModel):
     adding_date = peewee.DateTimeField()
     expiration_date = peewee.DateTimeField()
     description = peewee.CharField(max_length=512)
+    source = peewee.CharField(max_length=90)
     shop_id = peewee.ForeignKeyField(Shops, field="id")
 
     class Meta:
@@ -157,6 +176,9 @@ def _build_coupon(coupon) -> str:
 
         description = f"{description}\n\n" \
                       f"Актуален до {day}.{month}.{year}"
+
+    if coupon.source:
+        description = f"{description}\n\nИсточник: {coupon.source}"
 
     return description
 
@@ -196,7 +218,7 @@ def get_db() -> dict:
 def save_to_sqlite_ram(db: list):
     try:
         memory_db_handle.connect(reuse_if_open=True)
-        memory_db_handle.drop_tables([BotShops, BotCoupons, BotUsers])
+        memory_db_handle.drop_tables([BotShops, BotCoupons])
         memory_db_handle.create_tables([BotShops, BotCoupons, BotUsers])
 
         BotShops.insert_many(

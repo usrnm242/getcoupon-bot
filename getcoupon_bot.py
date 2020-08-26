@@ -1,6 +1,5 @@
 import telebot
 import re
-import datetime
 import Levenshtein as levenshtein
 from fuzzywuzzy import fuzz
 import db
@@ -34,9 +33,10 @@ def send_welcome(message):
     bot.send_message(
         message.from_user.id,
         "Кстати, наше приложение `GetCoupon` в "
-        "[App Store](https://apps.apple.com/ru/app/getcoupon-купоны-и-акции/id1525623085)"
-        " и [Google Play](https://example.com)\n"
-        "Скачивай! Там тоже удобный поиск, и всё по полочкам)\n",
+        "[App Store](https://uadd.me/getcoupon)"
+        " и скоро будет в Google Play.\n"
+        "Там тоже удобный поиск, и всё по полочкам)\n"
+        "Не забывай подписываться на нас в [соцсетях](https://uadd.me/getcoupon)!\n",
         disable_web_page_preview=True,
         parse_mode='Markdown'
     )
@@ -46,14 +46,15 @@ def send_welcome(message):
 def send_help(message):
     bot.send_message(
         message.from_user.id,
-        "Просто пришли мне имя магазина, "
+        "Просто пришли мне название магазина, "
         "а я пришлю список промокодов, которые там действуют."
     )
 
     bot.send_message(
         message.from_user.id,
-        "Не забывай про наше удобное приложение `GetCoupon` для поиска промокодов!",
-        reply_markup=_get_markup_keyboard_for_app()
+        "Смотри наш [сайт-визитку](https://uadd.me/getcoupon) "
+        "с другими продуктами!",
+        parse_mode='Markdown'
     )
 
 

@@ -156,7 +156,7 @@ class Coupons(BaseModel):
 
 def _build_coupon(coupon) -> str:
     description = f"{coupon.description}\n\n" \
-                  f"Промокод: `{coupon.promocode}`"
+                  f"Промокод: {coupon.promocode}"
 
     def _add_zeros(date):
         if int(date) < 9:

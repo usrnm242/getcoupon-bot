@@ -1,11 +1,9 @@
 from flask import Flask, request
-from flask_crontab import Crontab
 from conf import WEBHOOK_HOST, WEBHOOK_URL_PATH
 from getcoupon_bot import bot, telebot
 
 
 app = Flask(__name__)
-crontab = Crontab(app)
 
 
 @app.route("/", methods=['POST'])

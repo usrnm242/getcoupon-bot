@@ -9,17 +9,9 @@ from conf import TOKEN
 bot = telebot.TeleBot(TOKEN)
 
 
-# def update_db():
-#     db = get_db()
-#     all_shop_names = db.keys()
-#     all_shop_names_lower = list(map(lambda s: s.lower(), all_shop_names))
-#     return db, all_shop_names, all_shop_names_lower
-#
-#
-# database, all_shop_names, all_shop_names_lower = update_db()
-# user_current_coupon_index = defaultdict(int)
-# db_last_update_time = datetime.datetime.now()
-# db_cache_expiry_interval = datetime.timedelta(minutes=15)
+swear_words = [" бля", "нахуй", "збс", "пиздец", "заебись", " хуе", ]
+
+name_callings = ["пидор", "урод", "сука", "мудак", "пиздабол", "пидр", ]
 
 
 @bot.message_handler(commands=['start'])
@@ -58,6 +50,13 @@ def send_help(message):
     )
 
 
+@bot.edited_message_handler(func=lambda message: True)
+def edit_message(message):
+    bot.edit_message_text(chat_id=message.chat.id,
+                          text="Не редачь пажалустааа!",
+                          message_id=message.message_id + 1)
+
+
 @bot.message_handler(content_types=['text'])
 def get(message):
     coupons, keyboard = get_coupon(message.text)
@@ -65,8 +64,7 @@ def get(message):
     bot.send_message(message.from_user.id,
                      coupons[db.BotUsers[message.from_user.id].coupon_index],
                      reply_markup=keyboard,
-                     disable_web_page_preview=True,
-                     parse_mode='Markdown')
+                     disable_web_page_preview=True)
 
 
 @bot.callback_query_handler(func=lambda f: True)
@@ -77,7 +75,7 @@ def inline(callback):
     if callback.data.startswith("<"):
         db.dec_user_coupon_index(user_id)
     else:
-        # "right;"
+        # callback.data.startswith(">")
         db.inc_user_coupon_index(user_id)
 
     new_text = get_coupon_by_index(shop, db.BotUsers[user_id].coupon_index)
@@ -86,14 +84,24 @@ def inline(callback):
                           message_id=callback.message.message_id,
                           text=new_text,
                           reply_markup=_get_markup_keyboard_for_shop(shop),
-                          disable_web_page_preview=True,
-                          parse_mode='Markdown')
+                          disable_web_page_preview=True)
 
 
 def get_coupon(text) -> (list, telebot.types.InlineKeyboardMarkup):
+    text = text.lower()
+
     shop = _search_for_shop(text)
 
     if not shop:
+        answer_to_curse: tuple = _search_for_swear_words(
+            text,
+            swear_words,
+            name_callings
+        )
+
+        if answer_to_curse:
+            return answer_to_curse
+
         return [f"Магазин '{text}' не найден в базе данных😔"], None
 
     coupons: list = db.get_coupons(shop)
@@ -170,8 +178,7 @@ def _search_for_shop(user_text: str) -> str:
 
     partial_ratio_trust_lvl: int = 82
 
-    text = user_text.lower()
-    text = re.sub(r"[^a-zа-яё0-9\n \-]", " ", text)
+    text = re.sub(r"[^a-zа-яё0-9\n \-]", " ", user_text)
     text = re.sub(r"[ ]+", " ", text)
     text = f" {text} "  # adding spaces for correct partial ratio searching
 
@@ -191,6 +198,33 @@ def _search_for_shop(user_text: str) -> str:
 def get_coupon_by_index(shop: str, index: int) -> str:
     all_coupons = list(db.BotShops[shop].coupons)
     return all_coupons[index % len(all_coupons)]
+
+
+def _search_for_swear_words(
+        text: str,
+        swear_words: list,
+        name_callings: list
+        ) -> (list, telebot.types.InlineKeyboardMarkup):
+
+    keyboard = telebot.types.InlineKeyboardMarkup()
+
+    if any(swear_word in text for swear_word in swear_words):
+        keyboard.add(
+            telebot.types.InlineKeyboardButton(
+                'Успокоиться', url="http://listentothe.cloud"
+            )
+        )
+        return ['Я не люблю ругаться... Но сегодня... Тоже не буду. Забыли.'], keyboard
+
+    if any(name_calling in text for name_calling in name_callings):
+        keyboard.add(
+            telebot.types.InlineKeyboardButton(
+                'Мой тебе совет', url="https://fucking-great-advice.ru"
+            )
+        )
+        return ['Можешь за меня порадоваться. Ведь я всё равно лучше, чем ты.'], keyboard
+
+    return None
 
 
 if __name__ == '__main__':

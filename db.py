@@ -189,6 +189,7 @@ def _get_db() -> dict:
     shops_list = []
 
     for shop in Shops.select():
+
         all_coupons_in_shop = \
             [_build_coupon(coupon) for coupon in
              Coupons.select().where(Coupons.shop_id == shop.id)]

@@ -9,9 +9,15 @@ from conf import TOKEN
 bot = telebot.TeleBot(TOKEN)
 
 
-swear_words = [" бля", "нахуй", "збс", "пиздец", "заебись", " хуе", ]
+swear_words = [
+    " бля", "нахуй", "збс", "пиздец", "заебись", " хуе", "нахер", "нафиг",
+    "ебануться", "ебнуться", "хули", "херли", "фигли",
+]
 
-name_callings = ["пидор", "урод", "сука", "мудак", "пиздабол", "пидр", ]
+name_callings = [
+    "пидор", "урод", "сука", "мудак", "пиздабол", "пидр", "черт", "чорт",
+    "мудила", "падла", "уебок", "хуесос", " лох"
+]
 
 
 @bot.message_handler(commands=['start'])
@@ -152,23 +158,6 @@ def _get_markup_keyboard_with_shop_website_link(
     return keyboard
 
 
-def _get_markup_keyboard_for_app() -> telebot.types.InlineKeyboardMarkup:
-    keyboard = telebot.types.InlineKeyboardMarkup()
-
-    keyboard.row(
-        telebot.types.InlineKeyboardButton(
-            'App Store',
-            url="https://apps.apple.com/ru/app/getcoupon-купоны-и-акции/id1525623085"
-        ),
-        telebot.types.InlineKeyboardButton(
-            'Google Play',
-            url="https://example.com"
-        )
-    )
-
-    return keyboard
-
-
 def _search_for_shop(user_text: str) -> str:
     """
     Returns:
@@ -182,17 +171,30 @@ def _search_for_shop(user_text: str) -> str:
     text = re.sub(r"[ ]+", " ", text)
     text = f" {text} "  # adding spaces for correct partial ratio searching
 
-    for shop in db.get_shops():
-        partial_ratio = fuzz.partial_ratio(text, shop.shopname_lower)
-        alternative_ratio = fuzz.partial_ratio(
-            text,
-            shop.alternative_name
-        )
-        if partial_ratio > partial_ratio_trust_lvl or \
-                alternative_ratio > partial_ratio_trust_lvl:
-            return shop.shop
+    corresponding_shop = ""
+    max_ratio = 0
 
-    return ""
+    for shop in db.get_shops():
+        main_partial_ratio = fuzz.partial_ratio(text, f" {shop.shopname_lower} ")
+
+        if shop.alternative_name:
+            alternative_partial_ratio = fuzz.partial_ratio(
+                text,
+                f" {shop.alternative_name} "
+            )
+        else:
+            alternative_partial_ratio = 0
+
+        partial_ratio = max(
+            main_partial_ratio,
+            alternative_partial_ratio
+        )
+
+        if partial_ratio > max(partial_ratio_trust_lvl, max_ratio):
+            corresponding_shop = shop.shop
+            max_ratio = partial_ratio
+
+    return corresponding_shop
 
 
 def get_coupon_by_index(shop: str, index: int) -> str:
@@ -219,10 +221,10 @@ def _search_for_swear_words(
     if any(name_calling in text for name_calling in name_callings):
         keyboard.add(
             telebot.types.InlineKeyboardButton(
-                'Мой тебе совет', url="https://fucking-great-advice.ru"
+                'Мой тебе совет. Жми!', url="https://fucking-great-advice.ru"
             )
         )
-        return ['Можешь за меня порадоваться. Ведь я всё равно лучше, чем ты.'], keyboard
+        return ['Можешь за меня порадоваться. Ведь я всё равно полезнее тебя.'], keyboard
 
     return None
 

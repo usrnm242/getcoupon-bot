@@ -10,7 +10,7 @@ def update_db_if_needeed(func):
 
     def wrapper(*args, **kwargs):
         now = datetime.datetime.now()
-        global db_last_update_time
+        global db_last_update_time  # i know, we must use redis for example
         if now - db_last_update_time > datetime.timedelta(minutes=15):
             db_last_update_time = now
             save_to_sqlite_ram(get_db())
@@ -99,7 +99,7 @@ def _change_coupon_index(user_id: int, diff: int):
             user_id=user_id,
             coupon_index=current_index + diff
         ).execute()
-    except Exception:
+    except peewee.InternalError:
         BotUsers.replace(
             user_id=user_id,
             coupon_index=0
@@ -107,7 +107,9 @@ def _change_coupon_index(user_id: int, diff: int):
 
 
 def get_shops():
-    return BotShops.select(BotShops.shop, BotShops.shopname_lower, BotShops.alternative_name)
+    return BotShops.select(BotShops.shop,
+                           BotShops.shopname_lower,
+                           BotShops.alternative_name)
 
 
 @update_db_if_needeed
@@ -123,12 +125,12 @@ dbhandle = peewee.MySQLDatabase(
 )
 
 
-class BaseModel(peewee.Model):
+class MySQLBaseModel(peewee.Model):
     class Meta:
         database = dbhandle
 
 
-class Shops(BaseModel):
+class Shops(MySQLBaseModel):
     id = peewee.PrimaryKeyField(null=False)
     shop = peewee.CharField(max_length=50)
     alternative_name = peewee.CharField(max_length=30)
@@ -140,7 +142,7 @@ class Shops(BaseModel):
         order_by = ('id',)
 
 
-class Coupons(BaseModel):
+class Coupons(MySQLBaseModel):
     id = peewee.PrimaryKeyField(null=False)
     promocode = peewee.CharField(max_length=40)
     adding_date = peewee.DateTimeField()

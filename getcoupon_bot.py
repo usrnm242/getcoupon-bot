@@ -34,7 +34,8 @@ def send_welcome(message):
         "[App Store](https://uadd.me/getcoupon)"
         " и скоро будет в Google Play.\n"
         "Там тоже удобный поиск, и всё по полочкам)\n"
-        "Не забывай подписываться на нас в [соцсетях](https://uadd.me/getcoupon)!\n",
+        "Не забывай подписываться на нас в "
+        "[соцсетях](https://uadd.me/getcoupon)!\n",
         disable_web_page_preview=True,
         parse_mode='Markdown'
     )

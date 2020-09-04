@@ -2,6 +2,7 @@ import telebot
 import re
 import Levenshtein as levenshtein
 from fuzzywuzzy import fuzz
+import json
 import db
 from conf import TOKEN
 
@@ -9,15 +10,12 @@ from conf import TOKEN
 bot = telebot.TeleBot(TOKEN)
 
 
-swear_words = [
-    " бля", "нахуй", "збс", "пиздец", "заебись", " хуе", "нахер", "нафиг",
-    "ебануться", "ебнуться", "хули", "херли", "фигли",
-]
+with open("./utils.json", 'r') as utils_file:
+    util_data = json.load(utils_file)
 
-name_callings = [
-    "пидор", "урод", "сука", "мудак", "пиздабол", "пидр", "черт", "чорт",
-    "мудила", "падла", "уебок", "хуесос", " лох"
-]
+swear_words = util_data["swear_words"]
+
+name_callings = util_data["name_callings"]
 
 
 @bot.message_handler(commands=['start'])
